@@ -1,23 +1,25 @@
 function main()
     clear; clc;
-    numGraphPoints = 1000;
     k = 0.1;
-    radius = 0.3;
-    N = 100;
-    M1 = 1.9;
-    dy = radius / numGraphPoints;
     T1 = 300;
     T2 = 3000;
-    lambda = 0.04;
-    V2 = calc_speed_of_sound(T2);
-    M2n = 1.0;
+    
+%     Unused code
+%     numGraphPoints = 1000;
+%     radius = 0.3;
+%     M1 = 1.9;
+%     dy = radius / numGraphPoints;
+%     lambda = 0.04;
+%     V2 = calc_speed_of_sound(T2);
+    
     
     % Calculate and draw the left transcendental function
     x = [1, 1.8 * 10];
     trans_eq_l = [1, length(x)];
     k = 0;
     idx = 1;
-    
+    M2n = 1.0;
+
     % Getting the transcendental left values with a set M2n of 1.0 over a
     % range of M1n: 1.0 - 2.8
     for M1n = 1.0:0.01:2.8
@@ -29,7 +31,7 @@ function main()
     hold on
     
     % Calculate and draw the right transcendental function
-    M1n = 1.5;
+    M1n = 1.0;
     idx = 1;
     x = [1, 20];
     trans_eq_r = [1, length(x)];
@@ -42,6 +44,7 @@ function main()
         idx = idx + 1;
     end
     plot(x, trans_eq_r);
+    title('Plasma Shockwaves - Left and Right Transcendental Curves');
     hold on    
 end
 

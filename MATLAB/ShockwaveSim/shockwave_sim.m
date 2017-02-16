@@ -1,39 +1,58 @@
-clear; clc;
-numGraphPoints = 1000;
-k = 0.1;
-radius = 0.3;
-N = 100;
-M1 = 1.9;
-dy = radius / numGraphPoints;
-T1 = 300;
-T2 = 3000;
-lambda = 0.04;
-V2 = calc_speed_of_sound(T2);
-
-for iter = 1:1:numGraphPoints
-    yi = iter * dy;
-    alpha = asin(yi / radius);
-    xi = radius * (1 - cos(alpha));
-    M1n = M1 * sin(alpha);
-    M2n = 0.00137077 + 2.92163 * alpha - 4.62126 * alpha ^ 2 + 4.24972 * alpha ^ 3 - 1.86993 * alpha ^ 4 + 0.312301 ...
-        * alpha ^ 5;
-    gamma = atan((M2n / M1n) * (sqrt(T1 / T2)) * tan(alpha));
-    V2V1 = sqrt((T2 / T1) * ((M2n / M1n) ^ 2) * exp(-(yi ^ 2) / (lambda ^ 2)) * (cos(alpha) ^ 2) + sin(alpha) ^ 2);
-    Xi = (xi - k * radius) * (1 - V2V1 * cos(gamma));
-    Yi = yi - V2V1 * (k * radius - xi) * sin(gamma);
-    plot(Xi, Yi);
+function main()
+    clear; clc;
+    numGraphPoints = 1000;
+    k = 0.1;
+    radius = 0.3;
+    N = 100;
+    M1 = 1.9;
+    dy = radius / numGraphPoints;
+    T1 = 300;
+    T2 = 3000;
+    lambda = 0.04;
+    V2 = calc_speed_of_sound(T2);
+    M2n = 1.0;
+    
+    % Calculate and draw the left transcendental function
+    x = [1, 1.8 * 10];
+    trans_eq_l = [1, length(x)];
+    k = 0;
+    idx = 1;
+    
+    % Getting the transcendental left values with a set M2n of 1.0 over a
+    % range of M1n: 1.0 - 2.8
+    for M1n = 1.0:0.01:2.8
+        trans_eq_l(idx) = trans_left_eq(M1n, M2n, k);
+        x(idx) = M1n;
+        idx = idx + 1;
+    end
+    plot(x, trans_eq_l);
     hold on
-    y = [Yi, Xi];
+    
+    % Calculate and draw the right transcendental function
+    M1n = 1.5;
+    idx = 1;
+    x = [1, 20];
+    trans_eq_r = [1, length(x)];
+    
+    % Getting the transcendental right values with a set M1n of 1.5 over a
+    % range of M2n: 1.0 - 3.0    
+    for M2n = 1.0:0.01:3.0
+        trans_eq_r(idx) = trans_right_eq(M1n, M2n, T1, T2);
+        x(idx) = M2n;
+        idx = idx + 1;
+    end
+    plot(x, trans_eq_r);
+    hold on    
+end
+
+function [retval] = trans_right_eq(M1n, M2n, T1, T2)
+    retval = M1n * (1 - (1 / M1n ^ 2)) - M2n * (1 - (1 / M2n ^ 2)) * sqrt(T2 / T1);
 end
 
 function [retval] = trans_left_eq(M1n, M2n, k)
-    val1 = 1 / (M1n * (k - 1));
-    val2 = 2 * k * M1n ^ 2 - (k - 1);
-    val3 = (k - 1) * M1n ^ 2 + 2;
-    val4 = 2 * k * M2n ^ 2 - (k - 1);
-    val5 = 2 * k * M1n ^ 2 - (k - 1);
     power = k - (1 / 2 * k);
-    retval = (val1) * sqrt(abs(val2 * val3) * (val4 / val5) ^ power) - 1;
+    retval = (1 / (M1n * (k - 1))) * sqrt(abs((2 * k * M1n ^ 2 - (k - 1)) * ((k - 1) * M1n ^ 2 + 2)) * ...
+        ((2 * k * M2n ^ 2 - (k - 1)) / (2 * k * M1n ^ 2 - (k - 1))) ^ power) - 1;
 end
 
 function [retval] = calc_speed_of_sound(time)

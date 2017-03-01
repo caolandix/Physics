@@ -159,7 +159,7 @@ function retval = init(il1, il2, m, q, t, nm, vbin1, vbin2, dvb, vstart, nvbin)
         i1 = ngr + il1 - 1;
     end
     if (wc ~= 0.0)
-        for (int i = 1; i <= ngr; i++)
+        for i = 1:ngr
             i1 = i - 1 + il1;
             vv = m_vx[i1];
             theta = 2 * PhysConsts::PI * frand();
@@ -170,9 +170,9 @@ function retval = init(il1, il2, m, q, t, nm, vbin1, vbin2, dvb, vstart, nvbin)
     if (nlg ~= 1)
         j = ngr + 1;
         xs = 0.0;
-        for (int i = j; i <= n; i += ngr) {
+        for i = j:ngr:n
             xs += lg;
-            for (int j = 1; j <= ngr; j++) {
+            for j = 1:ngr
                 i1 = j - 1 + il1;
                 i2 = i1 + i - 1;
                 m_x[i2] = m_x[i1] + xs;
@@ -202,15 +202,186 @@ function retval = init(il1, il2, m, q, t, nm, vbin1, vbin2, dvb, vstart, nvbin)
     end
     setrho(il1, il2 - 1, q, q * n / m_l);
 end
- 
+
+
+function main(argc, argv)
+    char a_char[80];
+    bool WasInputFileGiven = false;
+    QString filename;
+
+    % InputDeck = (!WasInputFileGiven) ? fopen("es1data","r") :  fopen(theInputFile,"r");
+    % if (!InputDeck) {
+    if (0)
+        fprintf('Can''t find input file %s', argv[1]);
+        fprintf('Correct syntax is: ES1 -i file.inp');
+    else
 %{
-bool init(int *, int *, double *, double *, double *, double *, int *, int *, double *, double *, int *);
+        read lines until we get to numbers
+        while (fscanf(InputDeck,"%d %g %g %d %d %g %d", &nsp, &l, &dt, &nt, &mmax, &la, &accum) < 7)
+            fscanf(InputDeck, "%s", a_char);
+        // note: la is l/a
+
+        while (fscanf(InputDeck," %d %d %d %g %g %g %g %g", &ng, &iw, &ec, &epsi, &a1, &a2, &e0, &w0) < 8)
+            fscanf(InputDeck, "%s", a_char);
+        %}
+        if (m_nsp > NSPM)
+            fprintf('Number of species nsp cannot exceed NSPM');
+            return;
+        end
+
+        if (m_accum < 0)
+            fprintf('Error:  accum can't be negative!');
+            return;
+        end
+
+        if (m_ec ~= 1 || m_ec ~= 0)
+            fprintf('Error:  What are you thinking?  There are only two possible values of ec');
+            fprintf('0 and 1.  %d is not 0 or 1.', m_ec);
+            return;
+        end
+        if (not m_iw && m_ec)
+            fprintf('Error:  There IS no energy-conserving algorithm for NGP');
+            return;
+        end
+
+        m_ecconst = (m_ec) ? 0.5 : 0.0;
+        if (m_iw > 3 || m_iw < 0)
+            fprintf('Error:  bad iw flag!  Please check your input deck!');
+            return;
+        end
+
+        if (m_ng > NGMAX) {
+            fprintf('Number of grids ng cannot exceed NGMAX');
+            return;
+        end
+        m_dx = m_l / m_ng;
+        m_ng1 = m_ng + 1;
+        m_k_hi = m_ng / 2;
+
+        % Allocating space for arrays
+        m_nms = zeros(m_nsp + 1);
+        m_ms = zeros(m_nsp + 1];
+        m_qs = zeros(m_nsp + 1];
+        m_ts = zeros(m_nsp + 1];
+
+        m_x_array = zeros(m_ng + 1];
+        for i = 0:m_ng
+            m_x_array[i] = i * m_dx;
+        end
+        m_rho = zeros(m_ng + 3];
+        m_phi = zeros(m_ng + 2];
+        m_phik = zeros(m_ng + 2];
+        m_k_array = zeros(m_ng];
+        for i = 0:m_k_hi
+            m_k_array[i] = i * 2 * pi / m_l;
+        end
+        m_e = zeros(m_ng + 2];
+        m_acc = zeros(m_ng + 3];
+
+        m_t_array = zeros(HISTMAX];
+        m_ese = zeros(HISTMAX];
+        m_ke = zeros(HISTMAX];
+        m_te = zeros(HISTMAX];
+
+        m_kes_hist = zeros(m_nsp + 1];
+        m_pxs_hist = zeros(m_nsp + 1];
+        m_esem_hist = zeros(m_mmax + 1];
+
+        m_kes = zeros([m_nsp];
+        for i = 0:m_nsp
+            m_kes[i] = zeros(HISTMAX];
+        end
+        m_pxs = zeros(m_nsp];
+        for i = 0:m_nsp
+            m_pxs[i] = zeros(HISTMAX];
+        end
+        m_esem = zeros(m_mmax];
+        for i = 0:m_mmax
+            m_esem[i] = zeros(HISTMAX];
+        end
+        
+        m_x = zeros(MAXPARTICLES];
+        m_vx = zeros(MAXPARTICLES];
+        m_vy = zeros(MAXPARTICLES];
+
+        m_vbint = zeros(NVBINMAX];
+        m_vbin = zeros(m_nsp * NVBINMAX];
+        m_vbin_inst = zeros(m_nsp * NVBINMAX];
+        for i = 0:m_nsp * NVBINMAX
+            m_vbin_inst[i]= 0.0;
+        end
+        m_dvbin = zeros(m_nsp + 1];
+        m_vbinstart = zeros(m_nsp + 1];
+        m_v_array = zeros(NVBINMAX * m_nsp];
+
+        if (!m_x || !m_vx || !m_vy || !m_vbint || !m_vbin_inst || !m_dvbin || !m_v_array )
+            fprintf('START: Could not get enough memory for x or v''s.');
+            return;
+        end
+
+        fprintf('nsp = %2d     l = %8.5f', m_nsp, m_l);
+        fprintf('dt = %4.2f    nt = %4d', m_dt, m_nt);
+        fprintf('ng = %5d   iw = %2d   ec = %2d  accum = %4d', m_ng, m_iw, m_ec, m_accum);
+        fprintf('epsi = %4.2f  a1 = %4.2f  a2 = %4.2f', m_epsi, m_a1, m_a2);
+
+        for i = 1:m_nsp
+            if (!init(&m_ins[i], &m_ins[i + 1], &m_ms[i], &m_qs[i], &m_ts[i], &m_nms[i], &m_vbins[i], &m_vbins[i + 1], &m_dvbin[i], &m_vbinstart[i], &m_nvbin[i]))
+                return;
+            end
+        end
+
+        % added vbins to param list
+        % fclose(InputDeck);
+
+        for i = 1:m_nsp
+            m_np[i] = m_ins[i + 1] - m_ins[i];
+        end
+        for i = 0:m_nsp
+            for j = 0:HISTMAX
+                m_kes[i][j] = 0.0;
+                m_pxs[i][j] = 0.0;
+            end
+        end
+        m_rho[1] += m_rho[m_ng1];   %These resolve the periodic boundary conditions.
+        m_rho[2] += m_rho[m_ng + 2];
+        m_rho[m_ng] += m_rho[0];
+        m_rho[0] = m_rho[m_ng];
+        m_rho[m_ng + 2] = m_rho[2];
+        m_rho[m_ng1] = m_rho[1];
+        fields(0);
+
+        for i = 1:m_nsp
+            setv(m_ins[i], m_ins[i + 1] - 1, m_qs[i], m_ms[i], m_ts[i], m_pxs_hist[i], m_kes_hist[i]);
+        end
+        % scale all the velocities  properly
+        m_dvbin[i] *= m_dt / m_dx;
+        m_vbinstart[i] *= m_dt / m_dx;
+        startvel();
+    end
+end
+ 
+
+function [retval] = sign(a, b)
+    if (b >= 0.0)
+        if (a >= 0.0)
+            retval = a;
+        else
+            retval = -a;
+        end
+    else
+        if (a < 0.0)
+            retval = a;
+        else
+            retval = -a;
+        end        
+    end
+end
+%{
 void startvel();
 void accel(int, int, double, double, double, double *, double *);
 void cpft(double [], double [], int, int, double);
 void rpft2(double [], double [] ,const int, const int);
 void rpfti2(double [], double [],const int, const int);
-double sign(const double, const double);
 void fields(const int);
 void move(const int ilp, const int, const double);
 void setv(const int, const int, const double, const double, const double, double *, double *);
